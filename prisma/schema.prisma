@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id         String     @id @default(cuid())
+  theme      String
+  level      String
+  createdAt  DateTime   @default(now())
+  scoreFinal Int?
+  pseudo     String?
+
+  questions  Question[]
+}
+
+model Question {
+  id           String   @id @default(cuid())
+  text         String
+  choices      Json
+  correctIndex Int
+  createdAt    DateTime @default(now())
+
+  game    Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameId  String
+
+  answers Answer[]
+}
+
+model Answer {
+  id           String   @id @default(cuid())
+  chosenIndex  Int
+  isCorrect    Boolean
+  createdAt    DateTime @default(now())
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+}
