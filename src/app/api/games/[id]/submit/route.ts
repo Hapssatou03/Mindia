@@ -11,9 +11,11 @@ const SubmitSchema = z.object({
   ).length(10),
 });
 
-type Params = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: Request, { params }: Ctx) {
+  const { id } = await params;
+
   const body = await req.json();
   const parse = SubmitSchema.safeParse(body);
   if (!parse.success) {
@@ -22,14 +24,14 @@ export async function POST(req: Request, { params }: Params) {
   const { answers } = parse.data;
 
   const questions = await prisma.question.findMany({
-    where: { gameId: params.id },
+    where: { gameId: id },
     select: { id: true, correctIndex: true },
   });
 
-  const byId = new Map(questions.map(q => [q.id, q.correctIndex]));
+  const byId = new Map(questions.map((q) => [q.id, q.correctIndex]));
   let score = 0;
 
-  const creations = answers.map(a => {
+  const creations = answers.map((a) => {
     const correctIndex = byId.get(a.questionId);
     const isCorrect = correctIndex === a.chosenIndex;
     if (isCorrect) score++;
@@ -42,10 +44,7 @@ export async function POST(req: Request, { params }: Params) {
 
   await prisma.$transaction([
     prisma.answer.createMany({ data: creations }),
-    prisma.game.update({
-      where: { id: params.id },
-      data: { scoreFinal: score },
-    }),
+    prisma.game.update({ where: { id }, data: { scoreFinal: score } }),
   ]);
 
   return NextResponse.json({ score, total: answers.length }, { status: 200 });
